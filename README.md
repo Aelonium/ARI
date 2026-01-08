@@ -60,6 +60,10 @@ Azure Resource Inventory (ARI) is a comprehensive PowerShell module that generat
 - **Cross-Platform Support**: Works on Windows, Linux, Mac, and Azure Cloud Shell
 - **Automation-Ready**: Can be deployed via Azure Automation Accounts
 - **Low-Impact**: Read-only operations with no changes to your environment
+- **High Performance**: Optimized parallel processing for environments with 200+ subscriptions
+  - Up to 10x faster extraction for large environments
+  - Efficient resource batch processing to prevent CPU bottlenecks
+  - Thread-safe operations for reliable concurrent execution
 
 
 ## 🚀 Getting Started
@@ -242,6 +246,11 @@ Interactive features show resource details on hover:
 > **Very Important:** ARI will not upgrade existing PowerShell modules. Ensure you have the required modules installed.
 
 > **CloudShell Limitation:** When running in Azure CloudShell, the Excel output will not have auto-fit columns and you may see warnings during execution. The inventory results will still be correct.
+
+> **Performance Optimization (v3.7.0+):** ARI now uses parallel processing for improved performance in large environments:
+> - Environments with 200+ subscriptions will see 8-10x faster extraction
+> - Resource batch processing is optimized to prevent CPU bottlenecks
+> - For more details, see [PARALLEL_PROCESSING_OPTIMIZATION.md](PARALLEL_PROCESSING_OPTIMIZATION.md)
 
 <p align="center">
   <img src="images/cloudshell-warning-lib.png" width="600">
