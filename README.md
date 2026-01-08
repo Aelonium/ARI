@@ -156,6 +156,18 @@ Invoke-ARI -TenantID <Azure-Tenant-ID> -SubscriptionID <Subscription-ID> -SkipAd
 Invoke-ARI -TenantID <Azure-Tenant-ID> -SkipDiagram
 ```
 
+**Export Data to Cache for Future Reuse:**
+
+```powershell
+# First run - extract and export data
+Invoke-ARI -TenantID <Azure-Tenant-ID> -ExportDataPath "C:\ARI_Cache\Export_2026-01-08"
+
+# Subsequent runs - import from cache (much faster!)
+Invoke-ARI -ImportDataPath "C:\ARI_Cache\Export_2026-01-08"
+```
+
+> **Note**: Using `-ImportDataPath` skips all Azure API calls and uses cached data, dramatically speeding up report generation. The cache includes all resources, advisories, security data, and retirements per subscription.
+
 ### Automation Account Integration
 
 If you want to automatically run ARI, there is a way to do it using Automation Accounts:
@@ -198,6 +210,10 @@ See the [Automation Guide](https://github.com/microsoft/ARI/blob/main/docs/advan
 | **Diagram Options** | | |
 | SkipDiagram | Skip diagram creation | `-SkipDiagram` |
 | DiagramFullEnvironment | Include all network components in diagram | `-DiagramFullEnvironment` |
+| **Performance & Caching** | | |
+| ExportDataPath | Export extracted Azure data to cache files for reuse | `-ExportDataPath "<Path>"` |
+| ImportDataPath | Import previously exported data from cache files | `-ImportDataPath "<Path>"` |
+| Heavy | Force jobs to use smaller batches (for resource-constrained environments) | `-Heavy` |
 | **Other Options** | | |
 | Debug | Run in debug mode | `-Debug` |
 | NoAutoUpdate | Skip the auto update of the ARI Module | `-NoAutoUpdate` |

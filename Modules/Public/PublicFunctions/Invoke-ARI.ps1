@@ -88,6 +88,12 @@
 .PARAMETER DiagramFullEnvironment
     Use this parameter to include the full environment in the diagram. By default the Network Topology Diagram will only include VNETs that are peered with other VNETs, this parameter will force the diagram to include all VNETs.
 
+.PARAMETER ExportDataPath
+    Specifies the directory path where extracted Azure data will be exported as cache files (per subscription). This allows faster subsequent runs by importing the cached data instead of querying Azure APIs again.
+
+.PARAMETER ImportDataPath
+    Specifies the directory path containing previously exported Azure data cache files. When used, the script will import data from these files instead of querying Azure, significantly speeding up the execution.
+
 .PARAMETER ReportName
     Specifies the name of the report. Default is 'AzureResourceInventory'.
 
@@ -163,7 +169,9 @@ Function Invoke-ARI {
         [switch]$Lite,
         [switch]$Help,
         [switch]$DeviceLogin,
-        [switch]$DiagramFullEnvironment
+        [switch]$DiagramFullEnvironment,
+        [string]$ExportDataPath,
+        [string]$ImportDataPath
         )
 
     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Debugging Mode: On. ErrorActionPreference was set to "Continue", every error will be presented.')
@@ -316,7 +324,7 @@ Function Invoke-ARI {
 
     $ExtractionRuntime = [System.Diagnostics.Stopwatch]::StartNew()
 
-        $ExtractionData = Start-ARIExtractionOrchestration -ManagementGroup $ManagementGroup -Subscriptions $Subscriptions -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup -SecurityCenter $SecurityCenter -SkipAdvisory $SkipAdvisory -SkipPolicy $SkipPolicy -IncludeTags $IncludeTags -TagKey $TagKey -TagValue $TagValue -SkipAPIs $SkipAPIs -SkipVMDetails $SkipVMDetails -IncludeCosts $IncludeCosts -Automation $Automation -AzureEnvironment $AzureEnvironment
+        $ExtractionData = Start-ARIExtractionOrchestration -ManagementGroup $ManagementGroup -Subscriptions $Subscriptions -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup -SecurityCenter $SecurityCenter -SkipAdvisory $SkipAdvisory -SkipPolicy $SkipPolicy -IncludeTags $IncludeTags -TagKey $TagKey -TagValue $TagValue -SkipAPIs $SkipAPIs -SkipVMDetails $SkipVMDetails -IncludeCosts $IncludeCosts -Automation $Automation -AzureEnvironment $AzureEnvironment -ExportDataPath $ExportDataPath -ImportDataPath $ImportDataPath
 
     $ExtractionRuntime.Stop()
 
