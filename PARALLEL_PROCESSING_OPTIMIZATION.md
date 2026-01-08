@@ -25,7 +25,7 @@ The original implementation had the following limitations:
 - Environments with 400-600 subscriptions: Up to **5-8x faster** extraction
 - Reduced memory pressure by avoiding sequential array concatenation
 
-**Code Example:**
+**Code Example - Graph Query Parallelization:**
 ```powershell
 # Before: Sequential processing
 while ($SubLooper -lt $SubLoop) {
@@ -44,7 +44,23 @@ $SubBatches | ForEach-Object -ThrottleLimit 5 -Parallel {
 }
 ```
 
-### 2. Optimized Resource Batch Processing (`Start-ARIProcessJob.ps1`)
+**Code Example - API Inventory Parallelization:**
+```powershell
+# Before: Sequential processing
+foreach ($Subscription in $Subscriptions) {
+    Write-Host 'Running API Inventory at: ' $SubName
+    # API calls for each subscription...
+    $APIResults += $tmp
+}
+
+# After: Parallel processing
+$Subscriptions | ForEach-Object -ThrottleLimit 5 -Parallel {
+    # All subscriptions process simultaneously
+    $ResultsCollection.Add($tmp)  # Thread-safe add
+}
+```
+
+### 3. Optimized Resource Batch Processing (`Start-ARIProcessJob.ps1`)
 
 **Changes:**
 - Migrated from `Start-Job` to `Start-ThreadJob` for reduced overhead and better performance
@@ -76,7 +92,7 @@ $ModuleFiles | ForEach-Object -ThrottleLimit 5 -Parallel {
 }
 ```
 
-### 3. Automation Mode Optimization (`Start-ARIAutProcessJob.ps1`)
+### 4. Automation Mode Optimization (`Start-ARIAutProcessJob.ps1`)
 
 **Changes:**
 - Applied same parallel processing improvements as regular mode
@@ -96,7 +112,8 @@ All parallel processing uses thread-safe collections to avoid race conditions:
 
 ### Throttle Limits
 Carefully tuned to balance parallelism with resource constraints and API rate limits:
-- **Subscription batches**: ThrottleLimit 5 (allows 5 parallel API calls to Azure Resource Graph - conservative to avoid API throttling)
+- **Subscription batches (Resource Graph)**: ThrottleLimit 5 (allows 5 parallel API calls to Azure Resource Graph)
+- **Subscription API calls**: ThrottleLimit 5 (allows 5 subscriptions to be processed in parallel for REST API calls)
 - **Module processing**: ThrottleLimit 5 (allows 5 parallel module executions per job)
 
 ### Backward Compatibility
