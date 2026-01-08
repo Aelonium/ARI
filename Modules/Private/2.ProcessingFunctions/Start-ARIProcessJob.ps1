@@ -58,10 +58,12 @@ function Start-ARIProcessJob {
     $JobLoop = 1
     $TotalFolders = $ModuleFolders.count
 
-    Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Converting Resource data to JSON for Jobs')
-    $NewResources = ($Resources | ConvertTo-Json -Depth 40 -Compress)
-
-    Remove-Variable -Name Resources
+    Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Preparing resource data for parallel processing')
+    
+    # Note: ThreadJob can serialize objects automatically without JSON conversion
+    # This avoids the expensive JSON serialization/deserialization step
+    
+    Remove-Variable -Name NewResources -ErrorAction SilentlyContinue
     Clear-ARIMemory
 
     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Starting to Create Jobs to Process the Resources.')
@@ -85,7 +87,7 @@ function Start-ARIProcessJob {
                 $ModuleFiles = $($args[0])
                 $Subscriptions = $($args[2])
                 $InTag = $($args[3])
-                $Resources = $($args[4]) | ConvertFrom-Json
+                $Resources = $($args[4])  # No JSON conversion needed - ThreadJob handles serialization
                 $Retirements = $($args[5])
                 $Task = $($args[6])
                 $Unsupported = $($args[10])
@@ -125,7 +127,7 @@ function Start-ARIProcessJob {
                 
                 $OutputHashtable
 
-            } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $NewResources , $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
+            } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $Resources, $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
 
         if($JobLoop -eq $EnvSizeLooper)
             {
@@ -146,6 +148,6 @@ function Start-ARIProcessJob {
 
         }
 
-        Remove-Variable -Name NewResources
+        Remove-Variable -Name Resources -ErrorAction SilentlyContinue
         Clear-ARIMemory
 }

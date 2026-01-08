@@ -25,7 +25,10 @@ function Start-ARIAutProcessJob {
     $ParentPath = (get-item $PSScriptRoot).parent.parent
     $InventoryModulesPath = Join-Path $ParentPath 'Public' 'InventoryModules'
     $Modules = Get-ChildItem -Path $InventoryModulesPath -Directory
-    $NewResources = ($Resources | ConvertTo-Json -Depth 40 -Compress)
+    
+    # Note: ThreadJob can serialize objects automatically without JSON conversion
+    # This avoids the expensive JSON serialization/deserialization step
+    
     $JobLoop = 1
     Write-Output ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+"Starting ARI Automation Processing Jobs...")
 
@@ -51,7 +54,7 @@ function Start-ARIAutProcessJob {
                 $ModuleFiles = $($args[0])
                 $Subscriptions = $($args[2])
                 $InTag = $($args[3])
-                $Resources = $($args[4]) | ConvertFrom-Json
+                $Resources = $($args[4])  # No JSON conversion needed - ThreadJob handles serialization
                 $Retirements = $($args[5])
                 $Unsupported = $($args[10])
                 
@@ -89,7 +92,7 @@ function Start-ARIAutProcessJob {
                 
                 $OutputHashtable
 
-            } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $NewResources, $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
+            } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $Resources, $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
 
             if($JobLoop -eq $EnvSizeLooper)
                 {

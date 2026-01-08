@@ -76,6 +76,21 @@ $Subscriptions | ForEach-Object -ThrottleLimit 5 -Parallel {
 - Resource processing: Up to **5x faster** for medium environments
 - Reduced CPU bottlenecks through better parallelization
 - Improved memory efficiency by processing modules in parallel within jobs
+- **Eliminated JSON conversion bottleneck**: Removed expensive `ConvertTo-Json`/`ConvertFrom-Json` operations that could take hours for large datasets (188+ subscriptions). ThreadJob handles serialization automatically.
+
+**Code Example - JSON Optimization:**
+```powershell
+# Before: Slow JSON conversion
+$NewResources = ($Resources | ConvertTo-Json -Depth 40 -Compress)  # Very slow for large datasets
+Start-ThreadJob -ScriptBlock {
+    $Resources = $($args[4]) | ConvertFrom-Json  # Also slow
+}
+
+# After: Direct object passing
+Start-ThreadJob -ScriptBlock {
+    $Resources = $($args[4])  # ThreadJob handles serialization automatically
+}
+```
 
 **Code Example:**
 ```powershell
@@ -162,6 +177,7 @@ All modified files have been validated for PowerShell syntax correctness:
 - Reduced memory footprint through streaming results
 - Better garbage collection due to parallel execution
 - Eliminated sequential array concatenation bottlenecks
+- **Removed expensive JSON serialization/deserialization**: ThreadJob automatically handles object serialization, eliminating the need for manual JSON conversion of large resource datasets (major performance improvement for 100+ subscriptions)
 
 ## Migration Guide
 
