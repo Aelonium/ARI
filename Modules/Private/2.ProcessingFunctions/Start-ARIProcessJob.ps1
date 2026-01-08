@@ -30,7 +30,7 @@ function Start-ARIProcessJob {
         {$_ -le 12500}
             {
                 Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Regular Size Environment. All jobs will be run in parallel.')
-                $EnvSizeLooper = [int]::MaxValue  # Run all jobs in parallel
+                $EnvSizeLooper = 50  # Reasonable limit to prevent resource exhaustion
             }
         {$_ -gt 12500 -and $_ -le 50000}
             {
@@ -127,7 +127,7 @@ function Start-ARIProcessJob {
 
             } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $NewResources , $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
 
-        if($JobLoop -ge $EnvSizeLooper)
+        if($JobLoop -eq $EnvSizeLooper)
             {
                 Write-Host 'Processing Batch Jobs in Parallel' -ForegroundColor Cyan -NoNewline
                 Write-Host '. Optimized for large environments' -ForegroundColor Cyan

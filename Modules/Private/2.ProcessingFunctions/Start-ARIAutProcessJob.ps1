@@ -91,7 +91,7 @@ function Start-ARIAutProcessJob {
 
             } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $NewResources, $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
 
-            if($JobLoop -ge $EnvSizeLooper)
+            if($JobLoop -eq $EnvSizeLooper)
                 {
                     Write-Output ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Processing Batch Jobs in Parallel')
 

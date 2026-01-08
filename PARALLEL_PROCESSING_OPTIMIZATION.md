@@ -21,8 +21,8 @@ The original implementation had the following limitations:
 - Results are safely merged into a single collection
 
 **Performance Impact:**
-- Environments with 200+ subscriptions: Up to **10x faster** extraction
-- Environments with 400-600 subscriptions: Up to **8-10x faster** extraction
+- Environments with 200+ subscriptions: Up to **5x faster** extraction
+- Environments with 400-600 subscriptions: Up to **5-8x faster** extraction
 - Reduced memory pressure by avoiding sequential array concatenation
 
 **Code Example:**
@@ -35,7 +35,7 @@ while ($SubLooper -lt $SubLoop) {
 }
 
 # After: Parallel processing
-$SubBatches | ForEach-Object -ThrottleLimit 10 -Parallel {
+$SubBatches | ForEach-Object -ThrottleLimit 5 -Parallel {
     $Sub = $_
     $QueryResult = Search-AzGraph -Query $Query ...
     foreach ($item in $QueryResult) {
@@ -51,7 +51,7 @@ $SubBatches | ForEach-Object -ThrottleLimit 10 -Parallel {
 - Implemented `ForEach-Object -Parallel` with `ThrottleLimit 5` for module processing within jobs
 - Used `ConcurrentDictionary` for thread-safe hashtable operations
 - Improved batch sizing logic:
-  - **Regular environments (≤12,500 resources)**: All jobs run in parallel (unlimited)
+  - **Regular environments (≤12,500 resources)**: Batches of 50 (prevents resource exhaustion)
   - **Medium environments (12,501-50,000 resources)**: Batches of 15 (increased from 8)
   - **Large environments (>50,000 resources)**: Batches of 10 (increased from 5)
   - **Heavy/InTag mode**: Batches of 8 (increased from 5)
@@ -95,8 +95,8 @@ All parallel processing uses thread-safe collections to avoid race conditions:
 - `System.Collections.Concurrent.ConcurrentDictionary<string, object>` for hashtables
 
 ### Throttle Limits
-Carefully tuned to balance parallelism with resource constraints:
-- **Subscription batches**: ThrottleLimit 10 (allows 10 parallel API calls to Azure Resource Graph)
+Carefully tuned to balance parallelism with resource constraints and API rate limits:
+- **Subscription batches**: ThrottleLimit 5 (allows 5 parallel API calls to Azure Resource Graph - conservative to avoid API throttling)
 - **Module processing**: ThrottleLimit 5 (allows 5 parallel module executions per job)
 
 ### Backward Compatibility
@@ -118,9 +118,9 @@ All modified files have been validated for PowerShell syntax correctness:
 | Environment Size | Subscriptions | Resources | Expected Improvement |
 |-----------------|---------------|-----------|---------------------|
 | Small | <50 | <12,500 | 2-3x faster |
-| Medium | 50-200 | 12,500-50,000 | 5-8x faster |
-| Large | 200-600 | >50,000 | 8-10x faster |
-| Extra Large | >600 | >100,000 | 10-15x faster |
+| Medium | 50-200 | 12,500-50,000 | 3-5x faster |
+| Large | 200-600 | >50,000 | 5-8x faster |
+| Extra Large | >600 | >100,000 | 8-10x faster |
 
 ### Memory Usage
 - Reduced memory footprint through streaming results
@@ -144,10 +144,10 @@ This optimization is a drop-in replacement. Existing scripts and workflows will 
 ## Future Enhancements
 
 Potential future optimizations:
-1. Dynamic throttle limit adjustment based on available system resources
-2. Progress reporting for parallel operations
-3. Configurable parallelism levels via parameters
-4. Adaptive batching based on API response times
+1. Dynamic throttle limit adjustment based on available system resources and API response times
+2. Configurable throttle limits via parameters for users who want more aggressive parallelism
+3. Progress reporting for parallel operations
+4. Adaptive batching based on API response times and rate limit feedback
 
 ## Version History
 - **v3.7.0** (January 2026): Initial parallel processing implementation

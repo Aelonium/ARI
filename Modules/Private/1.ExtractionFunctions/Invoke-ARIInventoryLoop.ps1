@@ -42,7 +42,8 @@ function Invoke-ARIInventoryLoop {
             }
             
             # Process batches in parallel using ForEach-Object -Parallel
-            $SubBatches | ForEach-Object -ThrottleLimit 10 -Parallel {
+            # ThrottleLimit of 5 to be conservative with Azure Resource Graph API rate limits
+            $SubBatches | ForEach-Object -ThrottleLimit 5 -Parallel {
                 $Sub = $_
                 $Query = $using:GraphQuery
                 $Name = $using:LoopName
