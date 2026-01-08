@@ -1,9 +1,10 @@
 <#
 .Synopsis
-Module responsible for starting the processing jobs for Azure Resources.
+Module responsible for starting the processing jobs for Azure Resources with parallel execution.
 
 .DESCRIPTION
-This module creates and manages jobs to process Azure Resources in batches based on the environment size. It ensures efficient resource processing and avoids CPU overload.
+This module creates and manages jobs to process Azure Resources in batches based on the environment size. 
+It now uses ThreadJobs for better parallelization and ensures efficient resource processing while avoiding CPU overload.
 
 .Link
 https://github.com/microsoft/ARI/Modules/Private/2.ProcessingFunctions/Start-ARIProcessJob.ps1
@@ -12,8 +13,9 @@ https://github.com/microsoft/ARI/Modules/Private/2.ProcessingFunctions/Start-ARI
 This PowerShell Module is part of Azure Resource Inventory (ARI).
 
 .NOTES
-Version: 3.6.5
+Version: 3.7.0
 First Release Date: 15th Oct, 2024
+Updated: Jan 2026 - Improved parallel processing
 Authors: Claudio Merola
 #>
 
@@ -22,30 +24,31 @@ function Start-ARIProcessJob {
 
     Write-Progress -activity 'Azure Inventory' -Status "22% Complete." -PercentComplete 22 -CurrentOperation "Creating Jobs to Process Data.."
 
+    # Improved batch sizing for parallel processing
     switch ($Resources.count)
     {
         {$_ -le 12500}
             {
-                Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Regular Size Environment. Jobs will be run in parallel.')
-                $EnvSizeLooper = 20
+                Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Regular Size Environment. All jobs will be run in parallel.')
+                $EnvSizeLooper = 50  # Reasonable limit to prevent resource exhaustion
             }
         {$_ -gt 12500 -and $_ -le 50000}
             {
-                Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Medium Size Environment. Jobs will be run in batches of 8.')
-                $EnvSizeLooper = 8
+                Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Medium Size Environment. Jobs will be run in batches of 15.')
+                $EnvSizeLooper = 15  # Increased batch size
             }
         {$_ -gt 50000}
             {
-                Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Large Environment Detected.')
-                $EnvSizeLooper = 5
-                Write-Host ('Jobs will be run in small batches to avoid CPU and Memory Overload.') -ForegroundColor Red
+                Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Large Environment Detected. Jobs will be run in batches of 10.')
+                $EnvSizeLooper = 10  # Improved from 5
+                Write-Host ('Jobs will be run in optimized batches for large environments.') -ForegroundColor Yellow
             }
     }
 
     if ($Heavy.IsPresent -or $InTag.IsPresent)
         {
-            Write-Host ('Heavy Mode or InTag Mode Detected. Jobs will be run in small batches to avoid CPU and Memory Overload.') -ForegroundColor Red
-            $EnvSizeLooper = 5
+            Write-Host ('Heavy Mode or InTag Mode Detected. Jobs will be run in smaller batches to avoid CPU and Memory Overload.') -ForegroundColor Yellow
+            $EnvSizeLooper = 8  # Improved from 5
         }
 
     $ParentPath = (get-item $PSScriptRoot).parent.parent
@@ -55,10 +58,12 @@ function Start-ARIProcessJob {
     $JobLoop = 1
     $TotalFolders = $ModuleFolders.count
 
-    Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Converting Resource data to JSON for Jobs')
-    $NewResources = ($Resources | ConvertTo-Json -Depth 40 -Compress)
-
-    Remove-Variable -Name Resources
+    Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Preparing resource data for parallel processing')
+    
+    # Note: ThreadJob can serialize objects automatically without JSON conversion
+    # This avoids the expensive JSON serialization/deserialization step
+    
+    Remove-Variable -Name NewResources -ErrorAction SilentlyContinue
     Clear-ARIMemory
 
     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Starting to Create Jobs to Process the Resources.')
@@ -76,73 +81,58 @@ function Start-ARIProcessJob {
             $c = [math]::Round($c)
             Write-Progress -Id 1 -activity "Creating Jobs" -Status "$c% Complete." -PercentComplete $c
 
-            Start-Job -Name ('ResourceJob_'+$ModuleName) -ScriptBlock {
+            # Use ThreadJob for better parallel performance
+            Start-ThreadJob -Name ('ResourceJob_'+$ModuleName) -ScriptBlock {
 
                 $ModuleFiles = $($args[0])
                 $Subscriptions = $($args[2])
                 $InTag = $($args[3])
-                $Resources = $($args[4]) | ConvertFrom-Json
+                $Resources = $($args[4])  # No JSON conversion needed - ThreadJob handles serialization
                 $Retirements = $($args[5])
                 $Task = $($args[6])
                 $Unsupported = $($args[10])
 
-                $job = @()
+                # Use thread-safe hashtable for parallel module processing
+                $Hashtable = [System.Collections.Concurrent.ConcurrentDictionary[string, object]]::new()
 
-                Foreach ($Module in $ModuleFiles)
-                    {
-                        $ModuleFileContent = New-Object System.IO.StreamReader($Module.FullName)
-                        $ModuleData = $ModuleFileContent.ReadToEnd()
-                        $ModuleFileContent.Dispose()
-                        $ModName = $Module.Name.replace(".ps1","")
+                # Process modules in parallel using ForEach-Object -Parallel
+                $ModuleFiles | ForEach-Object -ThrottleLimit 5 -Parallel {
+                    $Module = $_
+                    $PSScriptRootLocal = $using:PSScriptRoot
+                    $SubscriptionsLocal = $using:Subscriptions
+                    $InTagLocal = $using:InTag
+                    $ResourcesLocal = $using:Resources
+                    $RetirementsLocal = $using:Retirements
+                    $TaskLocal = $using:Task
+                    $UnsupportedLocal = $using:Unsupported
+                    $ResultHash = $using:Hashtable
+                    
+                    $ModuleFileContent = New-Object System.IO.StreamReader($Module.FullName)
+                    $ModuleData = $ModuleFileContent.ReadToEnd()
+                    $ModuleFileContent.Dispose()
+                    $ModName = $Module.Name.replace(".ps1","")
 
-                        New-Variable -Name ('ModRun' + $ModName)
-                        New-Variable -Name ('ModJob' + $ModName)
+                    $ScriptBlock = [Scriptblock]::Create($ModuleData)
+                    $Result = Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $PSScriptRootLocal, $SubscriptionsLocal, $InTagLocal, $ResourcesLocal, $RetirementsLocal, $TaskLocal, $null, $null, $null, $UnsupportedLocal
 
-                        Set-Variable -Name ('ModRun' + $ModName) -Value ([PowerShell]::Create()).AddScript($ModuleData).AddArgument($PSScriptRoot).AddArgument($Subscriptions).AddArgument($InTag).AddArgument($Resources).AddArgument($Retirements).AddArgument($Task).AddArgument($null).AddArgument($null).AddArgument($null).AddArgument($Unsupported)
+                    # Add result to thread-safe hashtable
+                    $ResultHash.TryAdd($ModName, $Result) | Out-Null
+                }
 
-                        Set-Variable -Name ('ModJob' + $ModName) -Value ((get-variable -name ('ModRun' + $ModName)).Value).BeginInvoke()
+                # Convert ConcurrentDictionary to regular Hashtable for compatibility
+                $OutputHashtable = New-Object System.Collections.Hashtable
+                foreach ($key in $Hashtable.Keys) {
+                    $OutputHashtable[$key] = $Hashtable[$key]
+                }
+                
+                $OutputHashtable
 
-                        $job += (get-variable -name ('ModJob' + $ModName)).Value
-                        Start-Sleep -Milliseconds 100
-                        Remove-Variable -Name ModName
-                    }
-
-                While ($Job.Runspace.IsCompleted -contains $false) { Start-Sleep -Milliseconds 500 }
-
-                Foreach ($Module in $ModuleFiles)
-                    {
-                        $ModName = $Module.Name.replace(".ps1","")
-                        New-Variable -Name ('ModValue' + $ModName)
-                        Set-Variable -Name ('ModValue' + $ModName) -Value (((get-variable -name ('ModRun' + $ModName)).Value).EndInvoke((get-variable -name ('ModJob' + $ModName)).Value))
-
-                        Remove-Variable -Name ('ModRun' + $ModName)
-                        Remove-Variable -Name ('ModJob' + $ModName)
-                        Start-Sleep -Milliseconds 100
-                        Remove-Variable -Name ModName
-                    }
-
-                $Hashtable = New-Object System.Collections.Hashtable
-
-                Foreach ($Module in $ModuleFiles)
-                    {
-                        $ModName = $Module.Name.replace(".ps1","")
-
-                        $Hashtable["$ModName"] = (get-variable -name ('ModValue' + $ModName)).Value
-
-                        Remove-Variable -Name ('ModValue' + $ModName)
-                        Start-Sleep -Milliseconds 100
-
-                        Remove-Variable -Name ModName
-                    }
-
-                $Hashtable
-
-            } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $NewResources , $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
+            } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $Resources, $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
 
         if($JobLoop -eq $EnvSizeLooper)
             {
-                Write-Host 'Waiting Batch Jobs' -ForegroundColor Cyan -NoNewline
-                Write-Host '. This step may take several minutes to finish' -ForegroundColor Cyan
+                Write-Host 'Processing Batch Jobs in Parallel' -ForegroundColor Cyan -NoNewline
+                Write-Host '. Optimized for large environments' -ForegroundColor Cyan
 
                 $InterJobNames = (Get-Job | Where-Object {$_.name -like 'ResourceJob_*' -and $_.State -eq 'Running'}).Name
 
@@ -158,6 +148,6 @@ function Start-ARIProcessJob {
 
         }
 
-        Remove-Variable -Name NewResources
+        Remove-Variable -Name Resources -ErrorAction SilentlyContinue
         Clear-ARIMemory
 }
