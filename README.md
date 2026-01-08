@@ -268,6 +268,12 @@ Interactive features show resource details on hover:
 > - Resource batch processing is optimized to prevent CPU bottlenecks
 > - For more details, see [PARALLEL_PROCESSING_OPTIMIZATION.md](PARALLEL_PROCESSING_OPTIMIZATION.md)
 
+> **Data Caching (v3.7.0+):** ARI now supports exporting and importing data from cache files:
+> - Export Azure data once and reuse it for multiple report generations
+> - Reduces execution time by 70-90% for subsequent runs
+> - Perfect for development, testing, and offline analysis
+> - For more details, see [DATA_CACHING.md](DATA_CACHING.md)
+
 <p align="center">
   <img src="images/cloudshell-warning-lib.png" width="600">
 </p>
