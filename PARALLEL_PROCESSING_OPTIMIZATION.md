@@ -103,6 +103,23 @@ $ModuleFiles | ForEach-Object -ThrottleLimit 5 -Parallel {
 - Automation scenarios: Up to **2x faster** processing
 - Better resource utilization in constrained environments
 
+### 5. VM Quota and SKU Details Parallelization
+
+**Changes:**
+- **File**: `Get-ARIVMQuotas.ps1`
+  - Replaced sequential `Foreach` loop with `ForEach-Object -Parallel` (ThrottleLimit: 5)
+  - Implemented `ConcurrentBag<object>` for thread-safe result collection
+  - All subscriptions' VM quota queries now run in parallel
+- **File**: `Get-ARIVMSkuDetails.ps1`
+  - Replaced sequential `Foreach` loop with `ForEach-Object -Parallel` (ThrottleLimit: 5)
+  - Implemented `ConcurrentBag<object>` for thread-safe result collection
+  - All locations' VM SKU queries now run in parallel
+
+**Performance Impact:**
+- VM quota extraction: Up to **5x faster** for environments with many subscriptions
+- VM SKU extraction: Up to **5x faster** for environments with VMs in many locations
+- Both processes now execute concurrently instead of sequentially
+
 ## Technical Details
 
 ### Thread-Safe Collections
@@ -114,6 +131,8 @@ All parallel processing uses thread-safe collections to avoid race conditions:
 Carefully tuned to balance parallelism with resource constraints and API rate limits:
 - **Subscription batches (Resource Graph)**: ThrottleLimit 5 (allows 5 parallel API calls to Azure Resource Graph)
 - **Subscription API calls**: ThrottleLimit 5 (allows 5 subscriptions to be processed in parallel for REST API calls)
+- **VM Quota processing**: ThrottleLimit 5 (allows 5 subscriptions to process quota queries in parallel)
+- **VM SKU processing**: ThrottleLimit 5 (allows 5 locations to process SKU queries in parallel)
 - **Module processing**: ThrottleLimit 5 (allows 5 parallel module executions per job)
 
 ### Backward Compatibility
