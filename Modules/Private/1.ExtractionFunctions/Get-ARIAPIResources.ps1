@@ -59,9 +59,7 @@ function Get-ARIAPIResources {
     # Use thread-safe collection for parallel processing
     $APIResults = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
 
-    Write-Host 'Running API Inventory in parallel across ' -NoNewline
-    Write-Host $Subscriptions.Count -ForegroundColor Cyan -NoNewline
-    Write-Host ' subscriptions...'
+    Write-Host "Running API Inventory in parallel across $($Subscriptions.Count) subscriptions..." -ForegroundColor Cyan
 
     # Process subscriptions in parallel with throttle limit
     $Subscriptions | ForEach-Object -ThrottleLimit 5 -Parallel {
@@ -175,7 +173,7 @@ function Get-ARIAPIResources {
         Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+"[Parallel] Completed API Inventory for: $SubName")
     }
     
-    Write-Host 'Completed parallel API Inventory across all subscriptions' -ForegroundColor Green
+    Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Completed parallel API Inventory across all subscriptions')
 
         <#
         $Body = @{
