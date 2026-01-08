@@ -1,9 +1,10 @@
 <#
 .Synopsis
-Module responsible for starting automated processing jobs for Azure Resources.
+Module responsible for starting automated processing jobs for Azure Resources with parallel execution.
 
 .DESCRIPTION
-This module creates and manages automated thread jobs to process Azure Resources using PowerShell script blocks for efficient execution.
+This module creates and manages automated thread jobs to process Azure Resources using PowerShell script blocks 
+for efficient parallel execution. Optimized for automation scenarios.
 
 .Link
 https://github.com/microsoft/ARI/Modules/Private/2.ProcessingFunctions/Start-ARIAutProcessJob.ps1
@@ -12,8 +13,9 @@ https://github.com/microsoft/ARI/Modules/Private/2.ProcessingFunctions/Start-ARI
 This PowerShell Module is part of Azure Resource Inventory (ARI).
 
 .NOTES
-Version: 3.6.9
+Version: 3.7.0
 First Release Date: 15th Oct, 2024
+Updated: Jan 2026 - Improved parallel processing
 Authors: Claudio Merola
 #>
 
@@ -29,12 +31,12 @@ function Start-ARIAutProcessJob {
 
     if ($Heavy.IsPresent -or $InTag.IsPresent)
         {
-            Write-Output ('Heavy Mode Detected. Jobs will be run in small batches to avoid CPU and Memory Overload.')
-            $EnvSizeLooper = 2
+            Write-Output ('Heavy Mode Detected. Jobs will be run in optimized batches.')
+            $EnvSizeLooper = 4  # Improved from 2
         }
     else
         {
-            $EnvSizeLooper = 4
+            $EnvSizeLooper = 8  # Improved from 4
         }
 
     Foreach ($ModuleFolder in $Modules)
@@ -52,30 +54,46 @@ function Start-ARIAutProcessJob {
                 $Resources = $($args[4]) | ConvertFrom-Json
                 $Retirements = $($args[5])
                 $Unsupported = $($args[10])
-                $SmaResources = @{} # Initialize the hashtable to store results
+                
+                # Use thread-safe hashtable for parallel module processing
+                $SmaResources = [System.Collections.Concurrent.ConcurrentDictionary[string, object]]::new()
 
-                Foreach ($Module in $ModuleFiles)
-                    {
-                        $ModuleFileContent = New-Object System.IO.StreamReader($Module.FullName)
-                        $ModuleData = $ModuleFileContent.ReadToEnd()
-                        $ModuleFileContent.Dispose()
-                        $ModName = $Module.Name.replace(".ps1","")
+                # Process modules in parallel using ForEach-Object -Parallel
+                $ModuleFiles | ForEach-Object -ThrottleLimit 5 -Parallel {
+                    $Module = $_
+                    $PSScriptRootLocal = $using:PSScriptRoot
+                    $SubscriptionsLocal = $using:Subscriptions
+                    $InTagLocal = $using:InTag
+                    $ResourcesLocal = $using:Resources
+                    $RetirementsLocal = $using:Retirements
+                    $UnsupportedLocal = $using:Unsupported
+                    $ResultHash = $using:SmaResources
+                    
+                    $ModuleFileContent = New-Object System.IO.StreamReader($Module.FullName)
+                    $ModuleData = $ModuleFileContent.ReadToEnd()
+                    $ModuleFileContent.Dispose()
+                    $ModName = $Module.Name.replace(".ps1","")
 
-                        $ScriptBlock = [Scriptblock]::Create($ModuleData)
+                    $ScriptBlock = [Scriptblock]::Create($ModuleData)
+                    $Result = Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $PSScriptRootLocal, $SubscriptionsLocal, $InTagLocal, $ResourcesLocal, $RetirementsLocal, 'Processing', $null, $null, $null, $UnsupportedLocal
 
-                        $SmaResources[$ModName] = Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $PSScriptRoot, $Subscriptions, $InTag, $Resources, $Retirements,'Processing', $null, $null, $null, $Unsupported
+                    # Add result to thread-safe hashtable
+                    $ResultHash.TryAdd($ModName, $Result) | Out-Null
+                }
 
-                        Start-Sleep -Milliseconds 100
-
-                    }
-
-                $SmaResources
+                # Convert ConcurrentDictionary to regular Hashtable for compatibility
+                $OutputHashtable = New-Object System.Collections.Hashtable
+                foreach ($key in $SmaResources.Keys) {
+                    $OutputHashtable[$key] = $SmaResources[$key]
+                }
+                
+                $OutputHashtable
 
             } -ArgumentList $ModuleFiles, $PSScriptRoot, $Subscriptions, $InTag, $NewResources, $Retirements, 'Processing', $null, $null, $null, $Unsupported | Out-Null
 
-            if($JobLoop -eq $EnvSizeLooper)
+            if($JobLoop -ge $EnvSizeLooper)
                 {
-                    Write-Output ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Waiting Batch Jobs')
+                    Write-Output ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Processing Batch Jobs in Parallel')
 
                     Get-Job | Where-Object {$_.name -like 'ResourceJob_*'} | Wait-Job
 
