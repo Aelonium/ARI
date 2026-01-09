@@ -60,7 +60,7 @@ If ($Task -eq 'Processing') {
                         $RetiringFeature = $null
                         $RetiringDate = $null
                     }
-                $ER = $data.circuit.expressRouteID.split('/')[8]
+                $ER = if ($data.circuit.expressRouteID) { $data.circuit.expressRouteID.split('/')[8] } else { $null }
                 $externalCloud = $data.externalCloudLinks.count
                 $identitySources = $data.identitySources.count
                 $Tags = if(![string]::IsNullOrEmpty($1.tags.psobject.properties)){$1.tags.psobject.properties}else{'0'}

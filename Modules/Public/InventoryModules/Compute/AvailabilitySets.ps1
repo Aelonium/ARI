@@ -65,7 +65,7 @@ If ($Task -eq 'Processing')
                     }
                 $Tags = if(![string]::IsNullOrEmpty($1.tags.psobject.properties)){$1.tags.psobject.properties}else{'0'}
                 Foreach ($vmid in $data.virtualMachines.id) {
-                    $vmIds = $vmid.split('/')[8]
+                    $vmIds = if ($vmid) { $vmid.split('/')[8] } else { $null }
                         foreach ($Tag in $Tags) {
                             $obj = @{
                                 'ID'               = $1.id;

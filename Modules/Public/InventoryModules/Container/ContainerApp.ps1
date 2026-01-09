@@ -67,7 +67,7 @@ If ($Task -eq 'Processing')
                 $ingress = if(![string]::IsNullOrEmpty($data.configuration.ingress)){$true}else{$false}
                 $dapr = if(![string]::IsNullOrEmpty($data.configuration.dapr)){$true}else{$false}
                 $secrets = if(![string]::IsNullOrEmpty($data.configuration.secrets)){$data.configuration.secrets.count}else{0}
-                $Env = $data.environmentId.split('/')[8]
+                $Env = if ($data.environmentId) { $data.environmentId.split('/')[8] } else { $null }
                 foreach ($2 in $data.template) {
                     foreach ($3 in $2.containers) {
                         foreach ($Tag in $Tags) {
