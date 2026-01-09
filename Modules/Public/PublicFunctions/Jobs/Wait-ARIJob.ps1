@@ -48,6 +48,13 @@ function Wait-ARIJob {
         
         Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+"$JobType Jobs Still Running: "+[string]$runningJobs.count)
         
+        # Show currently running jobs (verbose output)
+        if ($runningJobs.Count -gt 0 -and $runningJobs.Count -le 10) {
+            $runningJobNames = ($runningJobs | ForEach-Object { $_.Name -replace 'ResourceJob_','' }) -join ', '
+            Write-Host "  [Running Jobs] " -NoNewline -ForegroundColor Cyan
+            Write-Host $runningJobNames -ForegroundColor Yellow
+        }
+        
         # Check for stuck jobs
         foreach ($job in $runningJobs) {
             $jobName = $job.Name

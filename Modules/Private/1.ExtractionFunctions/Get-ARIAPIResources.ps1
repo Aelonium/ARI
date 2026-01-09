@@ -58,8 +58,17 @@ function Get-ARIAPIResources {
     
     # Use thread-safe collection for parallel processing
     $APIResults = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
+    $CompletedCount = [System.Collections.Concurrent.ConcurrentBag[int]]::new()
 
     Write-Host "Running API Inventory in parallel across $($Subscriptions.Count) subscriptions..." -ForegroundColor Cyan
+    Write-Host "  - ResourceHealth Events" -ForegroundColor Gray
+    Write-Host "  - Managed Identities" -ForegroundColor Gray
+    Write-Host "  - Advisor Scores" -ForegroundColor Gray
+    Write-Host "  - Reservation Recommendations" -ForegroundColor Gray
+    if (!$SkipPolicy.IsPresent) {
+        Write-Host "  - Policy Assignments & Definitions" -ForegroundColor Gray
+    }
+    Write-Host ""
 
     # Process subscriptions in parallel with throttle limit
     $Subscriptions | ForEach-Object -ThrottleLimit 5 -Parallel {
@@ -69,6 +78,8 @@ function Get-ARIAPIResources {
         $ResourceHealthHistoryDateLocal = $using:ResourceHealthHistoryDate
         $SkipPolicyLocal = $using:SkipPolicy
         $ResultsCollection = $using:APIResults
+        $CompletedCountLocal = $using:CompletedCount
+        $TotalSubs = $using:Subscriptions.Count
         
         $ResourceHealth = ""
         $Identities = ""
@@ -81,6 +92,8 @@ function Get-ARIAPIResources {
         $SubName = $Subscription.Name
         $Sub = $Subscription.id
 
+        Write-Host "  [API Inventory] Processing: " -NoNewline -ForegroundColor Cyan
+        Write-Host $SubName -ForegroundColor Yellow
         Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+"[Parallel] Processing API Inventory for: $SubName")
 
         #ResourceHealth Events
@@ -169,6 +182,12 @@ function Get-ARIAPIResources {
         
         # Thread-safe add to collection
         $ResultsCollection.Add($tmp)
+        
+        # Track completion
+        $CompletedCountLocal.Add(1)
+        $CompletedSoFar = $CompletedCountLocal.Count
+        Write-Host "  [API Inventory] Completed: $SubName " -NoNewline -ForegroundColor Green
+        Write-Host "($CompletedSoFar/$TotalSubs)" -ForegroundColor Gray
         
         Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+"[Parallel] Completed API Inventory for: $SubName")
     }
