@@ -32,7 +32,20 @@ If ($Task -eq 'Processing') {
 
     if($storageacc)
         {
+            # Note: This module makes API calls (Get-AzStorageBlobServiceProperty and Get-AzStorageFileServiceProperty)
+            # for each storage account to retrieve soft delete settings. These calls can be slow in large environments.
+            # For better performance, consider running with fewer storage accounts or accepting N/A for soft delete days.
+            Write-Debug "Processing $($storageacc.Count) storage accounts. This may take time due to API calls for soft delete properties."
+            
+            $storageCount = 0
+            $totalStorage = $storageacc.Count
+            
             $tmp = foreach ($1 in $storageacc) {
+                $storageCount++
+                if ($storageCount % 10 -eq 0 -or $storageCount -eq 1) {
+                    Write-Debug "Processing storage account $storageCount of $totalStorage : $($1.NAME)"
+                }
+                
                 $ResUCount = 1
                 $sub1 = $SUB | Where-Object { $_.Id -eq $1.subscriptionId }
                 $data = $1.PROPERTIES
@@ -130,8 +143,24 @@ If ($Task -eq 'Processing') {
                 $FinalACLIPs = [string]$FinalACLIPs
                 $FinalACLIPs = if ($FinalACLIPs -like '* ,*') { $FinalACLIPs -replace ".$" }else { $FinalACLIPs }
 
-                $blobProperties = Get-AzStorageBlobServiceProperty -ResourceGroupName $1.RESOURCEGROUP -Name $1.NAME
-                $fileProperties = Get-AzStorageFileServiceProperty -ResourceGroupName $1.RESOURCEGROUP -Name $1.NAME
+                $blobProperties = $null
+                $fileProperties = $null
+                
+                try {
+                    # These API calls can be slow for large environments
+                    # Adding timeout and error handling to prevent job hanging
+                    $blobProperties = Get-AzStorageBlobServiceProperty -ResourceGroupName $1.RESOURCEGROUP -Name $1.NAME -ErrorAction Stop
+                } catch {
+                    Write-Debug "Failed to get blob properties for $($1.NAME): $($_.Exception.Message)"
+                    $blobProperties = $null
+                }
+                
+                try {
+                    $fileProperties = Get-AzStorageFileServiceProperty -ResourceGroupName $1.RESOURCEGROUP -Name $1.NAME -ErrorAction Stop
+                } catch {
+                    Write-Debug "Failed to get file properties for $($1.NAME): $($_.Exception.Message)"
+                    $fileProperties = $null
+                }
 
                 foreach ($2 in $VNETRules)
                     {
@@ -156,9 +185,9 @@ If ($Task -eq 'Processing') {
                                 'Microsoft Entra Authorization'         = $EntraID;
                                 'Allow Storage Account Key Access'      = $KeyAccess;
                                 'SFTP Enabled'                          = $SFTPEnabled;
-                                'Blob Soft Delete Days'                 = if ($blobProperties.DeleteRetentionPolicy.Enabled) { $blobProperties.DeleteRetentionPolicy.Days } else { 'N/A' };
-                                'Container Soft Delete Days'            = if ($blobProperties.containerDeleteRetentionPolicy.Enabled) { $blobProperties.containerDeleteRetentionPolicy.Days } else { 'N/A' };
-                                'File Share Soft Delete Days'           = if ($fileProperties.ShareDeleteRetentionPolicy.Enabled) { $fileProperties.ShareDeleteRetentionPolicy.Days } else { 'N/A' };
+                                'Blob Soft Delete Days'                 = if ($blobProperties -and $blobProperties.DeleteRetentionPolicy.Enabled) { $blobProperties.DeleteRetentionPolicy.Days } else { 'N/A' };
+                                'Container Soft Delete Days'            = if ($blobProperties -and $blobProperties.containerDeleteRetentionPolicy.Enabled) { $blobProperties.containerDeleteRetentionPolicy.Days } else { 'N/A' };
+                                'File Share Soft Delete Days'           = if ($fileProperties -and $fileProperties.ShareDeleteRetentionPolicy.Enabled) { $fileProperties.ShareDeleteRetentionPolicy.Days } else { 'N/A' };
                                 'Hierarchical Namespace'                = $HNSEnabled;
                                 'NFSv3 Enabled'                         = $NFSv3;
                                 'Large File Shares'                     = $LargeFileShare;

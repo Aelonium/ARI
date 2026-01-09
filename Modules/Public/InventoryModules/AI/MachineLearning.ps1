@@ -64,10 +64,10 @@ If ($Task -eq 'Processing') {
                         $RetiringFeature = $null
                         $RetiringDate = $null
                     }
-                $StorageAcc = $data.storageAccount.split('/')[8]
-                $KeyVault = $data.keyVault.split('/')[8]
-                $Insight = $data.applicationInsights.split('/')[8]
-                $containerRegistry = $data.containerRegistry.split('/')[8]
+                $StorageAcc = if ($data.storageAccount) { $data.storageAccount.split('/')[8] } else { $null }
+                $KeyVault = if ($data.keyVault) { $data.keyVault.split('/')[8] } else { $null }
+                $Insight = if ($data.applicationInsights) { $data.applicationInsights.split('/')[8] } else { $null }
+                $containerRegistry = if ($data.containerRegistry) { $data.containerRegistry.split('/')[8] } else { $null }
                 $Tags = if(![string]::IsNullOrEmpty($1.tags.psobject.properties)){$1.tags.psobject.properties}else{'0'}
                     foreach ($Tag in $Tags) {
                         $obj = @{

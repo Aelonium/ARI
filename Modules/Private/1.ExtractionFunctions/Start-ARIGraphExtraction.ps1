@@ -97,11 +97,15 @@ Function Start-ARIGraphExtraction {
             $GraphQuery = "resources $RGQueryExtension $TagQueryExtension $MGQueryExtension $ExcludedTypes | project id,name,type,tenantId,kind,location,resourceGroup,subscriptionId,managedBy,sku,plan,properties,identity,zones,extendedLocation$($GraphQueryTags) | order by id asc"
 
             Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Resources')
+            Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+            Write-Host "Resources" -ForegroundColor Yellow
             $Resources += Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'Resources'
 
             $GraphQuery = "networkresources $RGQueryExtension $TagQueryExtension $MGQueryExtension | project id,name,type,tenantId,kind,location,resourceGroup,subscriptionId,managedBy,sku,plan,properties,identity,zones,extendedLocation$($GraphQueryTags) | order by id asc"
 
             Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Network Resources')
+            Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+            Write-Host "Network Resources" -ForegroundColor Yellow
             $Resources += Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'Network Resources'
 
             if ($AzureEnvironment -ne 'AzureUSGovernment')
@@ -109,22 +113,30 @@ Function Start-ARIGraphExtraction {
                     $GraphQuery = "SupportResources $RGQueryExtension $TagQueryExtension $MGQueryExtension | project id,name,type,tenantId,kind,location,resourceGroup,subscriptionId,managedBy,sku,plan,properties,identity,zones,extendedLocation$($GraphQueryTags) | order by id asc"
 
                     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Support Tickets')
+                    Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+                    Write-Host "Support Tickets" -ForegroundColor Yellow
                     $Resources += Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'SupportTickets'
                 }
 
             $GraphQuery = "recoveryservicesresources $RGQueryExtension $TagQueryExtension | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems' or type =~ 'microsoft.recoveryservices/vaults/backuppolicies' $MGQueryExtension  | project id,name,type,tenantId,kind,location,resourceGroup,subscriptionId,managedBy,sku,plan,properties,identity,zones,extendedLocation$($GraphQueryTags) | order by id asc"
 
             Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Backup Resources')
+            Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+            Write-Host "Backup Items" -ForegroundColor Yellow
             $Resources += Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'Backup Items'
 
             $GraphQuery = "desktopvirtualizationresources $RGQueryExtension $MGQueryExtension| project id,name,type,tenantId,kind,location,resourceGroup,subscriptionId,managedBy,sku,plan,properties,identity,zones,extendedLocation$($GraphQueryTags) | order by id asc"
 
             Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for AVD Resources')
+            Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+            Write-Host "Virtual Desktop Resources" -ForegroundColor Yellow
             $Resources += Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'Virtual Desktop'
 
             $GraphQuery = "resourcecontainers $RGQueryExtension $TagQueryExtension $MGContainerExtension | project id,name,type,tenantId,kind,location,resourceGroup,subscriptionId,managedBy,sku,plan,properties,identity,zones,extendedLocation$($GraphQueryTags) | order by id asc"
 
             Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Resource Containers')
+            Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+            Write-Host "Subscriptions and Resource Groups" -ForegroundColor Yellow
             $ResourceContainers = Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'Subscriptions and Resource Groups'
 
             $ContainerCount = $ResourceContainers.count
@@ -135,6 +147,8 @@ Function Start-ARIGraphExtraction {
                     $GraphQuery = "advisorresources $RGQueryExtension $MGQueryExtension | where properties.impact in~ ('Medium','High') | order by id asc"
 
                     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Advisories')
+                    Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+                    Write-Host "Azure Advisor Recommendations" -ForegroundColor Yellow
                     $Advisories = Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'Advisories'
 
                     $AdvisorCount = $Advisories.count
@@ -145,6 +159,8 @@ Function Start-ARIGraphExtraction {
                     $GraphQuery = "securityresources $RGQueryExtension | where type =~ 'microsoft.security/assessments' and properties['status']['code'] == 'Unhealthy' $MGQueryExtension | order by id asc"
 
                     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Security Resources')
+                    Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+                    Write-Host "Security Center Assessments" -ForegroundColor Yellow
                     $Security = Invoke-ARIInventoryLoop -GraphQuery $GraphQuery -FSubscri $Subscri -LoopName 'Security Center'
 
                     $SecurityCount = $Security.count
@@ -152,6 +168,8 @@ Function Start-ARIGraphExtraction {
                 }
 
     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Invoking Inventory Loop for Retirements')
+    Write-Host "Extracting: " -NoNewline -ForegroundColor Cyan
+    Write-Host "Resource Retirements" -ForegroundColor Yellow
 
     $RootPath = (get-item $PSScriptRoot).parent
 

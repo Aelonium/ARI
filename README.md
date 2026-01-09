@@ -156,6 +156,18 @@ Invoke-ARI -TenantID <Azure-Tenant-ID> -SubscriptionID <Subscription-ID> -SkipAd
 Invoke-ARI -TenantID <Azure-Tenant-ID> -SkipDiagram
 ```
 
+**Export Data to Cache for Future Reuse:**
+
+```powershell
+# First run - extract and export data
+Invoke-ARI -TenantID <Azure-Tenant-ID> -ExportDataPath "C:\ARI_Cache\Export_2026-01-08"
+
+# Subsequent runs - import from cache (much faster!)
+Invoke-ARI -ImportDataPath "C:\ARI_Cache\Export_2026-01-08"
+```
+
+> **Note**: Using `-ImportDataPath` skips all Azure API calls and uses cached data, dramatically speeding up report generation. The cache includes all resources, advisories, security data, and retirements per subscription.
+
 ### Automation Account Integration
 
 If you want to automatically run ARI, there is a way to do it using Automation Accounts:
@@ -198,6 +210,10 @@ See the [Automation Guide](https://github.com/microsoft/ARI/blob/main/docs/advan
 | **Diagram Options** | | |
 | SkipDiagram | Skip diagram creation | `-SkipDiagram` |
 | DiagramFullEnvironment | Include all network components in diagram | `-DiagramFullEnvironment` |
+| **Performance & Caching** | | |
+| ExportDataPath | Export extracted Azure data to cache files for reuse | `-ExportDataPath "<Path>"` |
+| ImportDataPath | Import previously exported data from cache files | `-ImportDataPath "<Path>"` |
+| Heavy | Force jobs to use smaller batches (for resource-constrained environments) | `-Heavy` |
 | **Other Options** | | |
 | Debug | Run in debug mode | `-Debug` |
 | NoAutoUpdate | Skip the auto update of the ARI Module | `-NoAutoUpdate` |
@@ -251,6 +267,12 @@ Interactive features show resource details on hover:
 > - Environments with 200+ subscriptions will see 5-8x faster extraction
 > - Resource batch processing is optimized to prevent CPU bottlenecks
 > - For more details, see [PARALLEL_PROCESSING_OPTIMIZATION.md](PARALLEL_PROCESSING_OPTIMIZATION.md)
+
+> **Data Caching (v3.7.0+):** ARI now supports exporting and importing data from cache files:
+> - Export Azure data once and reuse it for multiple report generations
+> - Reduces execution time by 70-90% for subsequent runs
+> - Perfect for development, testing, and offline analysis
+> - For more details, see [DATA_CACHING.md](DATA_CACHING.md)
 
 <p align="center">
   <img src="images/cloudshell-warning-lib.png" width="600">

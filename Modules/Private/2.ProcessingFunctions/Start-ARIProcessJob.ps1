@@ -67,6 +67,8 @@ function Start-ARIProcessJob {
     Clear-ARIMemory
 
     Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Starting to Create Jobs to Process the Resources.')
+    Write-Host ""
+    Write-Host "Creating processing jobs for resource types..." -ForegroundColor Cyan
 
     #Foreach ($ModuleFolder in $ModuleFolders)
     $ModuleFolders | ForEach-Object -Process {
@@ -76,6 +78,8 @@ function Start-ARIProcessJob {
             $ModuleFiles = Get-ChildItem -Path $ModulePath
 
             Write-Debug ((get-date -Format 'yyyy-MM-dd_HH_mm_ss')+' - '+'Creating Job: '+$ModuleName)
+            Write-Host "  [Job Created] " -NoNewline -ForegroundColor Green
+            Write-Host $ModuleName -ForegroundColor Yellow
 
             $c = (($JobLoop / $TotalFolders) * 100)
             $c = [math]::Round($c)
